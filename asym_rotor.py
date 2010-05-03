@@ -8,7 +8,7 @@ from scipy import exp, sin, cos, tan, log, array, zeros, ones, r_, c_, dot
 # these are python routines to work with rigid body animations
 # we want to convert quaternions into orientation vectors etc..
 
-_libar = nm.ctypeslib.load_library('asym_rotor.so.1', '.')
+_libar = nm.ctypeslib.load_library('libar.la', '.')
 _libar.asym_rotor.argtypes = [
     ct.c_double, ct.c_double,
     nm.ctypeslib.ndpointer(dtype = nm.double),

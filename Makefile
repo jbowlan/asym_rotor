@@ -1,26 +1,20 @@
 CC=gcc
-CPPFLAGS=
-CFLAGS=-Wall -O3
-LDFLAGS=
-LDLIBS=gsl gslcblas
+#CPPFLAGS=
+CFLAGS=-fPIC -Wall -O2
+LDFLAGS=-shared
+LDLIBS=-lgsl -lgslcblas
 
-define compile_rule
-        libtool --mode=compile \
-        $(CC) $(CFLAGS) $(CPPFLAGS) -c $<
-endef
-define link_rule
-        libtool --mode=link \
-        $(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-endef
+all: libar.so
 
-LIBS = libar.la
-libar_OBJS = asym_rotor.lo
+libar.so: libar.o:
+	$(CC) $(LDFLAGS) $(LDLIBS) -Wl,-soname,$@ -o $@ $<
 
-%.lo: %.c
-        $(call compile_rule)
+libar.o: libar.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-libar.la: $(libmystuff_OBJS)
-        $(call link_rule)
+clean:
+	rm -f *.o *.so
+
 
 # install/%.la: %.la
 #         libtool --mode=install \
