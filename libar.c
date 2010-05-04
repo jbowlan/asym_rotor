@@ -55,7 +55,9 @@ dqt(double t, const double qt[], double dqt[], void *par) {
 // numerically integrate the motion of an asymmetric rotor
 // 
 int asym_rotor(const double t0, const double tf, 
-	       const double qt0[],
+	       const double qt0[], 
+	       double *qts, 
+	       long max_tstep,
 	       const double Fmax,
 	       const double mu1, const double mu2, const double mu3,
 	       const double I1, const double I2, const double I3) {
@@ -81,8 +83,14 @@ int asym_rotor(const double t0, const double tf,
   double h = 1e-6;
   
   double qt[7] = { qt0[0], qt0[1], qt0[2], qt0[3], qt0[4], qt0[5], qt0[6] };
-  
+
+  long tstep = 0;
+
   while(t < tf) {
+    
+    if(tstep >= max_tstep)
+      break;
+
     int status = gsl_odeiv_evolve_apply(e, c, s,
 					&sys,
 					&t, tf,
@@ -90,16 +98,30 @@ int asym_rotor(const double t0, const double tf,
 
     if(status != GSL_SUCCESS)
       break;
-    
+
+    qts[tstep*8 + 0] = t;
+    qts[tstep*8 + 1] = qt[0];
+    qts[tstep*8 + 2] = qt[1];
+    qts[tstep*8 + 3] = qt[2];
+    qts[tstep*8 + 4] = qt[3];
+    qts[tstep*8 + 5] = qt[4];
+    qts[tstep*8 + 6] = qt[5];
+    qts[tstep*8 + 7] = qt[6];
+
+    // printf("tstep %ld: t = %f\n", tstep, t);
+
     // print out the state
-    printf("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %.5e\n",
-	   t, qt[0], qt[1], qt[2], qt[3], qt[4], qt[5], qt[6]);
+    //printf("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %.5e\n",
+    //   t, qt[0], qt[1], qt[2], qt[3], qt[4], qt[5], qt[6]);
+    
+    tstep++;
   }
 
   gsl_odeiv_evolve_free(e);
   gsl_odeiv_control_free(c);
   gsl_odeiv_step_free(s);
-  return 0;
+
+  return tstep;
 }
 
 /* int main() { */

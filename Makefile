@@ -6,10 +6,10 @@ LDLIBS=-lgsl -lgslcblas
 
 all: libar.so
 
-libar.so: libar.o:
-	$(CC) $(LDFLAGS) $(LDLIBS) -Wl,-soname,$@ -o $@ $<
+libar.so: libar.o
+	$(CC) $(LDFLAGS) $(LDLIBS) -Wl,-soname,libar.so -o libar.so libar.o
 
-libar.o: libar.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
