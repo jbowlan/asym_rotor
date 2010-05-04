@@ -1,5 +1,6 @@
 import pylab
-from scipy import array, zeros, average, tile, ones, sqrt, sum, pi, r_, c_
+from scipy import array, zeros, average, tile, ones, sqrt, sum, pi, r_, c_, \
+    dot, linspace, sin, cos, exp, log
 from scipy.linalg import eig
 from enthought.mayavi import mlab
 import asym_rotor as ar
@@ -57,6 +58,23 @@ def inertia_tensor(q, m):
             I[i,j] = - sum(m[:]*q[:,i]*q[:,j])
     return I
 
+# given coords, mass, and dipole
+# in angstrom, amu, debye
+def select_scale(coords, mass, dipole):
+    cm_coords = coords - tile(center_of_mass(coords, mass), 
+                              (coords.shape[0], 1))
+
+    print "computing inertia tensor and principal axes of inertia"
+
+    mol_I, mol_Ix = eig(inertia_tensor(cm_coords, mass))
+    mol_I.sort()
+
+    print "principal moments of inertia are: ", mol_I
+    
+    
+    
+    
+
 def animate(coords, mass, dipole, q0, w0, F, t):
     # animate the motion of a molecule with molecular coordinates
     # initial orientation q0
@@ -82,26 +100,137 @@ def animate(coords, mass, dipole, q0, w0, F, t):
 
     print "qt.shape = ", qt.shape
 
-    return
+    # now extract the orientation quaternions
+    
+    ts = qt[:,0]
+    qt = qt[:,1:5]
+    
+    
 
 
 
-    # now compute the trajectory by integrating the rigid body equations
-    # of motion
 
-    # f = mlab.figure(size=(500,500))
+
+def q_to_rotmatrix(q):
+    """ map a quaternion to a rotation matrix """
+    return array([[dot(q**2.0, array([+1.0, +1.0, -1.0, -1.0])),
+                   2.0*(q[1]*q[2] + q[0]*q[3]),
+                   2.0*(q[1]*q[3] - q[0]*q[2])],
+                  [2.0*(q[1]*q[2] - q[0]*q[3]),
+                   dot(q**2.0,array([+1.0, -1.0, +1.0, -1.0])),
+                   2.0*(q[2]*q[3] + q[0]*q[1])],
+                  [2.0*(q[1]*q[3] + q[0]*q[2]),
+                   2.0*(q[2]*q[3] - q[0]*q[1]),
+                   dot(q**2.0, array([+1.0, -1.0, -1.0, +1.0]))]])
+
+# this should not change with time
+def total_energy(qt, param):
+    """ compute the total energy """
+    t = qt[0]
+    q = qt[1:5]
+    w = qt[5:8]
+    F = param[0]
+    mu = param[1:4]
+    I = param[4:7]
+
+    Q = q_to_rotmatrix(qt)
+    T = dot(I, w**2.0)/2.0 # kinetic energy
+    V = dot(mu, dot(Q.T, array([0.0, 0.0, F]))) # potential energy of dipole
+    
+    return T - V
+
+def angular_momentum(qt, param):
+    t = qt[0]
+    q = qt[1:5]
+    w = qt[5:8]
+    F = param[0]
+    mu = param[1:4]
+    I = param[4:7]
+
+    # this vector should be the same in the space and body fixed coordinates
+    return dot(I, w)
+
+def dipole_projection(qt, param):
+    """ 
+    compute projection of mu onto the F vector in the space fixed
+    axes.  This is is proportional to the instantaneous force on the particle
+    """
+    t = qt[0]
+    q = qt[1:5]
+    w = qt[5:8]
+    F = param[0]
+    mu = param[1:4]
+    I = param[4:7]
+    
+    Q = q_to_rotmatrix(qt)
+    
+    return dot(array([0.0, 0.0, F]), dot(Q, mu))
+
+
+if __name__ == "__main__":
+    # u = array([0.,1.,1.])
+    # u = u / sqrt(sum(u**2.0))
+    # const_rotation(au9b, ones(au9b.shape[0]),u)
+
+    mass = ones(au9b.shape[0])*197.0
+    q0 = array([0.0, 0.0, 0.0, 1.0])
+    w0 = array([0.0, 1.0, 0.0])
+    F = 1e6
+    t = 100.0
+    animate(au9b, mass, au9bdipole, q0, w0, F, t)
+            
+            
+def const_rotation(coords, mass, u):
+    # animate the motion of a molecule with molecular coordinates
+    # initial orientation q0
+    # angular velocity w0
+    # for time t
+    
+    print "center the molecular coordinates on the center of mass"
+    
+    cm_coords = coords - tile(center_of_mass(coords, mass), 
+                              (coords.shape[0], 1))
+
+    print "computing inertia tensor and principal axes of inertia"
+    
+    mol_I, mol_Ix = eig(inertia_tensor(cm_coords, mass))
+
+    mol_I.sort()
+
+    print "principal moments of inertia are: ", mol_I
+
+    theta = linspace(0, 10*2*pi, 500)
+    qt = [r_[cos(th/2),sin(th/2)*u] for th in theta] 
+
+    # render the molecule
+
+    f = mlab.figure(size=(500,500))
     
     # # draw the molecule
-    # molecule  = mlab.points3d(au9bcm[:,0], au9bcm[:,1], au9bcm[:,2],
-    #                           scale_factor=2,
-    #                           color=(1,1,0),
-    #                           resolution=20)
+    molecule  = mlab.points3d(cm_coords[:,0], cm_coords[:,1], cm_coords[:,2],
+                              scale_factor=2,
+                              color=(1,1,0),
+                              resolution=20)
     
-    # # and the dipole moment
-    # dip = mlab.quiver3d([0],[0],[0], 
-    #                     [au9bdipole[0]],[au9bdipole[1]],[au9bdipole[2]],
-    #                     line_width=3.0,
-    #                     color=(0,1,0)) 
+    # and the dipole moment
+    dip = mlab.quiver3d([0],[0],[0], 
+                        [au9bdipole[0]],[au9bdipole[1]],[au9bdipole[2]],
+                        scale_factor=8,
+                        line_width=2.0,
+                        color=(0,1,0))
     
+    # mlab.title('Polar Au_9 Cluster')
+    # mlab.axes(extent=[0, 5, 0, 5, 0, 5])
 
-    return p
+
+    ms = molecule.mlab_source
+    dms = dip.mlab_source
+    for q in qt:
+        M = q_to_rotmatrix(q)
+        cp = dot(cm_coords, M)
+        dp = dot(au9bdipole, M)*12.0
+        ms.set(x = cp[:,0], y=cp[:,1], z=cp[:,2])
+        dms.set(u = [dp[0]], v = [dp[1]], w = [dp[2]])
+
+
+
