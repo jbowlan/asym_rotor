@@ -6,8 +6,6 @@ import ctypes as ct
 from scipy import exp, sin, cos, tan, log, array, zeros, ones, r_, c_, dot, \
     pi 
 
-# these are some units used to measure sizes field strengths etc..
-
 # useful physical constants
 amu = 1.67e-27
 debye = 3.33e-30
@@ -25,7 +23,7 @@ mu0 = 4. * pi * 1e-7
 
 _libar = nm.ctypeslib.load_library('libar.so', '.')
 _libar.asym_rotor.argtypes = [
-    ct.c_double, ct.c_double,
+    ct.c_double, ct.c_double, ct.c_double,
     nm.ctypeslib.ndpointer(dtype = nm.double),
     nm.ctypeslib.ndpointer(dtype = nm.double),
     ct.c_ulong,
@@ -36,7 +34,7 @@ _libar.asym_rotor.argtypes = [
 
 _libar.asym_rotor.restype = ct.c_int
 
-def asym_rotor(t0, tf, max_tstep, qt0, F, mu, I):
+def asym_rotor(t0, t1, t2, max_tstep, qt0, F, mu, I):
     qt0 = nm.asarray(qt0, dtype=nm.double)
     if len(qt0) != 7:
         print "qt0 must have 7 arguments"
@@ -48,7 +46,7 @@ def asym_rotor(t0, tf, max_tstep, qt0, F, mu, I):
     mu1, mu2, mu3 = mu
     I1, I2, I3 = I
     
-    ts = _libar.asym_rotor(t0, tf, 
+    ts = _libar.asym_rotor(t0, t1, t2, 
                            qt0, 
                            qt, max_tstep, 
                            F, 
@@ -66,8 +64,6 @@ def asym_rotor(t0, tf, max_tstep, qt0, F, mu, I):
 # in all qt is a state variable
 # qt = array([t, q0, q1, q2, q3, w1, w2, w3])
 
-
-
 if __name__ == "__main__":
     print "running asym_rotor test"
     F = 1.0
@@ -75,11 +71,11 @@ if __name__ == "__main__":
     I = [1.0, 1.0, 1.0]
     
     
-    qt = asym_rotor(0, 1000.0, 100000, 
-                    [0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 10.0], 
-                    0.1, 
+    qt = asym_rotor(10.0, 50.0, 100.0, 100000, 
+                    [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0], 
+                    2.0, 
                     [0.0, 0.0, 1.0], 
-                    [1.0, 2.0, 3.0])
+                    [1.0, 1.0, 1.0])
     print "qt.shape = ", qt.shape
     pylab.figure()
     pylab.plot(qt[:,0],qt[:,1])

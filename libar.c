@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_odeiv.h>
@@ -9,7 +10,7 @@
 
 // parameters of the derivative
 typedef struct {
-  double F, mu1, mu2, mu3, I1, I2, I3; 
+  double t0, t1, F, mu1, mu2, mu3, I1, I2, I3; 
 } params;
 
 // evaluate the right hand side of the state variable
@@ -22,7 +23,10 @@ int
 dqt(double t, const double qt[], double dqt[], void *par) {
   params *st = (params *)par; 
 
-  double F = st->F; // field in space fixed axes 
+  double t0 = st->t0;
+  double t1 = st->t1;
+  
+  double F = 0;
   double mu1 = st->mu1, mu2 = st->mu2, mu3 = st->mu3; 
   double I1 = st->I1, I2 = st->I2, I3 = st->I3;
   
@@ -39,22 +43,36 @@ dqt(double t, const double qt[], double dqt[], void *par) {
   // and the transpose of this matrix is multiplied by the field
   // vector in the space fixed axes
 
-  double f1 = F * 2.0 * (q1*q3 + q0*q2);
-  double f2 = F * 2.0 * (q2*q3 - q0*q1);
-  double f3 = F * (q0*q0 - q1*q1 - q2*q2 - q3*q3);
-  
+  double f1 = 0;
+  double f2 = 0;
+  double f3 = 0;
+
+  // slowly increase the field to F between t0 and t1
+  if(t < t0) {
+    F = 0.0;
+  } else if(t < t1) {
+    F = st->F * (t - t0)/(t1 - t0);
+  } else {
+    F = st->F;
+  }
+
+  f1 = F * 2.0 * (q1*q3 + q0*q2);
+  f2 = F * 2.0 * (q2*q3 - q0*q1);
+  f3 = F * (q0*q0 - q1*q1 - q2*q2 + q3*q3);
+
   double dw1 = ((I2-I3)*w2*w3 - (mu3*f2 - mu2*f3))/I1;
   double dw2 = ((I3-I1)*w3*w1 - (mu1*f3 - mu3*f1))/I2;
   double dw3 = ((I1-I2)*w1*w2 - (mu2*f1 - mu1*f2))/I3;
   
   dqt[0] = dq0; dqt[1] = dq1; dqt[2] = dq2; dqt[3] = dq3;
   dqt[4] = dw1; dqt[5] = dw2; dqt[6] = dw3;
+  
   return GSL_SUCCESS;
 }
 
 // numerically integrate the motion of an asymmetric rotor
 // 
-int asym_rotor(const double t0, const double tf, 
+int asym_rotor(const double t0, const double t1, const double t2, 
 	       const double qt0[], 
 	       double *qts, 
 	       long max_tstep,
@@ -65,35 +83,35 @@ int asym_rotor(const double t0, const double tf,
   // allocate a stepper that uses Runge-Kutta Cash-Karp (4,5) step size
   // this should not require a jacobean matrix
   const gsl_odeiv_step_type * T 
-    = gsl_odeiv_step_rkck;
+    = gsl_odeiv_step_rkf45;
   
   gsl_odeiv_step * s 
     = gsl_odeiv_step_alloc(T, 7);
   gsl_odeiv_control * c 
-    = gsl_odeiv_control_y_new(1e-6, 0.0);
+    = gsl_odeiv_control_y_new(1e-12, 1e-12);
   gsl_odeiv_evolve * e 
      = gsl_odeiv_evolve_alloc(7);
 
   // initial parameters
-  params pi = { Fmax, mu1, mu2, mu3, I1, I2, I3 };
+  params pi = { t0, t1, Fmax, mu1, mu2, mu3, I1, I2, I3 };
   
   gsl_odeiv_system sys = { dqt, NULL, 7, &pi };
   
-  double t = t0;
-  double h = 1e-6;
+  double t = 0.0;
+  double h = 1e-8;
   
   double qt[7] = { qt0[0], qt0[1], qt0[2], qt0[3], qt0[4], qt0[5], qt0[6] };
 
   long tstep = 0;
 
-  while(t < tf) {
+  while(t < t2) {
     
     if(tstep >= max_tstep)
       break;
 
     int status = gsl_odeiv_evolve_apply(e, c, s,
 					&sys,
-					&t, tf,
+					&t, t2,
 					&h, qt);
 
     if(status != GSL_SUCCESS)
