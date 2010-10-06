@@ -342,8 +342,8 @@ if __name__ == "__main__":
     # const_rotation(au9b, ones(au9b.shape[0]),u)
 
     
-    F = 10000.0
+    F = 100.0
     temp = 5000.0
     cycles = (0,0,100)
-    animate(au9b, mau9b, au9bdipole, temp, F, cycles)
-    #animate(octrot, m_octrot, octrot_dipole, temp, F, cycles)
+    #animate(au9b, mau9b, au9bdipole, temp, F, cycles)
+    animate(octrot, m_octrot, octrot_dipole, temp, F, cycles)

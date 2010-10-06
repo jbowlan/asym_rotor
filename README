@@ -1,0 +1,6 @@
+This program calculates the rigid body motion of a heavy polar molecule in an electric
+field, by numerically integrating Euler's equations of motion. The quaternion representation
+of rotations is used. There is no analytic solution for this system and for strong fields
+the motion is in unstable to chaos. This one requires lots of numeric integrations so it is
+implemented in C/Python. It uses the ODE integration routines from GSL, and uses mayavi for
+visualization of the motion.
