@@ -1,5 +1,5 @@
-import scipy
-import pylab
+import scipy as sp
+import pylab as pl
 import numpy as nm
 import ctypes as ct
 
@@ -21,7 +21,7 @@ mu0 = 4. * pi * 1e-7
 # these are python routines to work with rigid body animations
 # we want to convert quaternions into orientation vectors etc..
 
-_libar = nm.ctypeslib.load_library('libar.so', '.')
+_libar = nm.ctypeslib.load_library('libar.dylib', '.')
 _libar.asym_rotor.argtypes = [
     ct.c_double, ct.c_double, ct.c_double,
     nm.ctypeslib.ndpointer(dtype = nm.double),
@@ -77,12 +77,12 @@ if __name__ == "__main__":
                     [0.0, 0.0, 1.0], 
                     [1.0, 1.0, 1.0])
     print "qt.shape = ", qt.shape
-    pylab.figure()
-    pylab.plot(qt[:,0],qt[:,1])
-    pylab.plot(qt[:,0],qt[:,2])
-    pylab.plot(qt[:,0],qt[:,3])
-    pylab.plot(qt[:,0],qt[:,4])
-    pylab.show()
+    pl.figure()
+    pl.plot(qt[:,0],qt[:,1])
+    pl.plot(qt[:,0],qt[:,2])
+    pl.plot(qt[:,0],qt[:,3])
+    pl.plot(qt[:,0],qt[:,4])
+    pl.show()
     
 
 
