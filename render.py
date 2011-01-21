@@ -1,6 +1,6 @@
 import pylab
 from scipy import array, zeros, average, tile, ones, sqrt, sum, pi, r_, c_, \
-    dot, linspace, sin, cos, exp, log, rand, interp, floor
+    dot, linspace, sin, cos, exp, log, rand, interp, floor, cumsum, arange
 from scipy.linalg import eig, norm
 from enthought.mayavi import mlab
 import asym_rotor as ar
@@ -147,7 +147,7 @@ def dipole_projection(qt, F, mu, mol_I):
     
     Q = q_to_rotmatrix(q)
     
-    return dot(array([0.0, 0.0, F]), dot(Q, mu))
+    return dot(array([0.0, 0.0, 1.0]), dot(Q, mu))
 
 
 def initial_cond(coords, mass, dipole, temp, F):
@@ -203,7 +203,8 @@ def interpolate_quat(t,qt,steps):
     return ti, qti
 
 
-def animate(coords, mass, dipole, temp, F, cycles, w0=None, max_tstep=100000):
+def animate(coords, mass, dipole, temp, F, cycles, w0=None, max_tstep=100000,
+		no_anim=True):
     """
     UNITS:
     coords    angstrom
@@ -217,17 +218,17 @@ def animate(coords, mass, dipole, temp, F, cycles, w0=None, max_tstep=100000):
     cm_coords = coords - tile(center_of_mass(coords, mass), 
                               (coords.shape[0], 1))
 
-    print "computing inertia tensor and principal axes of inertia"
-
     mol_I, mol_Ix = eig(inertia_tensor(cm_coords, mass))
     mol_I.sort()
-    
-    print "selecting initial conditions"
+       
+    print "principal moments of inertia"
+    print mol_I
     
     q0,w0 = initial_cond(coords, mass, dipole, temp, F)
 
-    print "q0 = ", q0, " norm(q0) = ", norm(q0)
-    print "w0 = ", w0, " norm(w0) = ", norm(w0)
+    print "initial conditions"
+    print " q0 = ", q0, " norm(q0) = ", norm(q0)
+    print " w0 = ", w0, " norm(w0) = ", norm(w0)
     
     #q0 = array([0., 0., 1., 0.])
     #w0 = array([0.,1.,0.], dtype=float)
@@ -259,7 +260,7 @@ def animate(coords, mass, dipole, temp, F, cycles, w0=None, max_tstep=100000):
     qtr = qt[:,1:5]
     wtr = qt[:,5:8]
 
-    # plot conserved quantities
+    # diagnostic plots
 
     # field in rk time steps
     ft = zeros(len(tsr))
@@ -267,32 +268,47 @@ def animate(coords, mass, dipole, temp, F, cycles, w0=None, max_tstep=100000):
     ft[(tsr > t0) * (tsr < t1)] = F * tsr / (t1 - t0)
     ft[tsr > t1] = F
 
-    fp = pylab.figure()
+    fp = pylab.figure(figsize=(3,4))
+   	
+    # total energy
     pylab.subplot(4,1,1)
     pylab.plot(tsr, array([total_energy(qt[i,:], ft[i], dipole, mol_I) 
-                           for i in xrange(len(tsr))]))
+                            for i in xrange(len(tsr))]))
+    pylab.title('Total Energy')
+    
+    # angular momentum
     pylab.subplot(4,1,2)
     L = r_[[angular_momentum(qt[i,:], ft[i], dipole, mol_I) 
             for i in xrange(len(tsr))]]    
     
     print "L.shape = ", L.shape
+    #pylab.plot(tsr, array([norm(L[i,:]) for i in xrange(len(tsr))]), 'r-')
+    pylab.plot(tsr, array([L[i,0]for i in xrange(len(tsr))]), 'b-')
+    pylab.plot(tsr, array([L[i,1]for i in xrange(len(tsr))]), 'g-')
+    pylab.plot(tsr, array([L[i,2]for i in xrange(len(tsr))]), 'r-') 
+    pylab.title('Angular Momentum')
 
-    pylab.plot(tsr, array([norm(L[i,:]) for i in xrange(len(tsr))]), 'r-')
-
-    #pylab.plot(tsr, array([L[i,0]for i in xrange(len(tsr))]), 'b-')
-    #pylab.plot(tsr, array([L[i,1]for i in xrange(len(tsr))]), 'g-')
-    #pylab.plot(tsr, array([L[i,2]for i in xrange(len(tsr))]), 'r-')
-       
+	# dipole projection
     pylab.subplot(4,1,3)
-    pylab.plot(tsr, array([dipole_projection(qt[i,:], ft[i], dipole, mol_I) 
-                           for i in xrange(len(tsr))]))
+    dp = array([dipole_projection(qt[i,:], ft[i], dipole, mol_I) 
+                           for i in xrange(len(tsr))])
+    dpavg = cumsum(dp)/(arange(len(dp))+1.0)
+    pylab.plot(tsr, dpavg)
     
+
+    pylab.title('Projected Dipole (polarization)') 
+	
+	# field strength
     pylab.subplot(4,1,4)
     pylab.plot(tsr, ft)
-    
+    pylab.title('Field Strength')
+
+    pylab.subplots_adjust(hspace=0.95)
+
     pylab.show()
 
-    #return
+    if no_anim:
+	return
 
     # frame rate is 10 ps to 1 s
     frames = floor(t2 / 10 * 30)
@@ -342,8 +358,8 @@ if __name__ == "__main__":
     # const_rotation(au9b, ones(au9b.shape[0]),u)
 
     
-    F = 100.0
-    temp = 5000.0
-    cycles = (0,0,100)
+    F = 0.0
+    temp = 300.0
+    cycles = (0,0,1000)
     #animate(au9b, mau9b, au9bdipole, temp, F, cycles)
-    animate(octrot, m_octrot, octrot_dipole, temp, F, cycles)
+    animate(octrot, m_octrot, octrot_dipole, temp, F, cycles, no_anim=False)
